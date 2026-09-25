@@ -47,7 +47,8 @@
         return;
       }
 
-      var partIds = input.split(",").map(id => id.trim().toLowerCase());
+      // Clean up the user input (removes spaces and accidental .dat extensions)
+      var partIds = input.split(",").map(id => id.trim().toLowerCase().replace('.dat', ''));
       statusText.innerText = "Fetching 3D models... Please wait.";
       statusText.style.color = "#0066cc";
 
@@ -58,7 +59,8 @@
         var partId = partIds[i];
         if (!partId) continue;
         
-        var ldrawUrl = `https://library.ldraw.org/library/official/parts/${partId}.dat`;
+        // UPADTE: Using the open GitHub CDN instead of the locked LDraw server
+        var ldrawUrl = `https://raw.githubusercontent.com/gkjohnson/ldraw-parts-library/master/parts/${partId}.dat`;
         
         try {
           var response = await fetch(ldrawUrl);
@@ -73,7 +75,7 @@
       }
 
       if (filesFound === 0) {
-        statusText.innerText = "Error: None of those Part IDs have official 3D models available.";
+        statusText.innerText = "Error: None of those Part IDs could be found.";
         statusText.style.color = "#d9534f";
         return;
       }
