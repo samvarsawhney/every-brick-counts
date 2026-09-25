@@ -68,34 +68,45 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwl65_4O_ODSg8NaHFcBE2CrZwUmBUJ7nBNZUHlntkTzvyz7rLP5v8AWh9MeXq8TLrPqg/exec"; // PASTE GOOGLE API LINK HERE
+    const API_URL = "https://script.google.com/macros/s/AKfycbwl65_4O_ODSg8NaHFcBE2CrZwUmBUJ7nBNZUHlntkTzvyz7rLP5v8AWh9MeXq8TLrPqg/exec";
 
     window.onload = function() { performSearch(); };
 
-    async function performSearch() {
+    function performSearch() {
       var query = document.getElementById("searchInput").value || "";
       var container = document.getElementById("resultsContainer");
       container.innerHTML = "<div style='text-align:center; width:100%; color:#666; font-size:16px;'>Digging through the brick bin...</div>";
-      
-      try {
-        const response = await fetch(API_URL + "?q=" + encodeURIComponent(query));
-        const results = await response.json();
-        
-        if (results.error) {
+
+      var callbackName = "handleApiResponse_" + Math.round(100000 * Math.random());
+
+      window[callbackName] = function(results) {
+        var scriptTag = document.getElementById(callbackName);
+        if (scriptTag) scriptTag.remove();
+        delete window[callbackName];
+
+        if (results && results.error) {
           container.innerHTML = `<div style="color:#d9534f; text-align:center;">Database Error: ${results.error}</div>`;
           return;
         }
-        displayResults(results);
-      } catch (error) {
-        container.innerHTML = `<div style="color:#d9534f; text-align:center;">Network Error: Could not connect to the database.</div>`;
-      }
+
+        displayResults(results || []);
+      };
+
+      var script = document.createElement("script");
+      script.id = callbackName;
+      script.src = API_URL + "?q=" + encodeURIComponent(query) + "&callback=" + callbackName;
+      script.onerror = function() {
+        container.innerHTML = `<div style="color:#d9534f; text-align:center;">Network Error: Could not reach Google Apps Script.</div>`;
+      };
+
+      document.body.appendChild(script);
     }
 
     function displayResults(results) {
       var container = document.getElementById("resultsContainer");
       container.innerHTML = "";
 
-      if (results.length === 0) {
+      if (!results || results.length === 0) {
         container.innerHTML = "<div style='text-align:center; width:100%; color:#666;'>No parts found.</div>";
         return;
       }
