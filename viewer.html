@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Native LDraw Viewer</title>
+  <style>
+    body { margin: 0; overflow: hidden; background-color: #222; }
+    #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-family: Arial, sans-serif; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div id="loading">Initializing LDraw Engine...</div>
+  
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { LDrawLoader } from 'three/addons/loaders/LDrawLoader.js';
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const modelUrl = urlParams.get('model');
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x222222);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
+    camera.position.set(150, 150, 150);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(10, 20, 10);
+    scene.add(directionalLight);
+
+    if (modelUrl) {
+      const loader = new LDrawLoader();
+      
+      loader.setPartsLibraryPath('https://raw.githubusercontent.com/gkjohnson/ldraw-parts-library/master/'); 
+
+      loader.load(
+        modelUrl,
+        function (group) {
+          document.getElementById('loading').style.display = 'none';
+          
+          const box = new THREE.Box3().setFromObject(group);
+          const center = box.getCenter(new THREE.Vector3());
+          group.position.sub(center);
+          
+          group.rotation.x = Math.PI; 
+          scene.add(group);
+        },
+        function (xhr) {
+           document.getElementById('loading').innerText = 'Loading Part... ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+        },
+        function (error) {
+          document.getElementById('loading').innerText = "Error rendering LDraw file.";
+          console.error(error);
+        }
+      );
+    } else {
+      document.getElementById('loading').innerText = "No model file provided.";
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

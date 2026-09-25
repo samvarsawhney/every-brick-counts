@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Every Brick Counts</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #f4f4f9; font-family: Arial, sans-serif; }
+    .app-wrapper { padding: 15px; box-sizing: border-box; width: 100%; max-width: 1200px; margin: 0 auto; }
+    * { box-sizing: border-box; }
+    .search-container { margin-bottom: 25px; text-align: center; width: 100%; }
+    #searchInput { padding: 12px; width: 100%; max-width: 400px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; }
+    #searchBtn { padding: 12px 24px; font-size: 16px; background-color: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;}
+    #searchBtn:hover { background-color: #0052a3; }
+    .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; width: 100%; }
+    .card { display: flex; background: #ffffff; padding: 15px; gap: 15px; border-radius: 8px; border: 1px solid #eaeaea; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .part-image { width: 100px; height: 100px; object-fit: contain; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; flex-shrink: 0; }
+    .image-placeholder { width: 100px; height: 100px; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center; border: 1px solid #ddd; border-radius: 4px; flex-shrink: 0; }
+    .image-placeholder span { color: #999; font-size: 12px; font-weight: bold; }
+    .card-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .part-name { font-weight: bold; font-size: 16px; margin: 0 0 8px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .part-detail { font-size: 13px; color: #555; margin: 0 0 12px 0; line-height: 1.4; }
+    .btn { display: block; width: 100%; padding: 8px; margin-bottom: 8px; background-color: #0066cc; color: white; text-align: center; text-decoration: none; border: none; border-radius: 4px; font-size: 13px; font-weight: bold; cursor: pointer; }
+    .btn:last-child { margin-bottom: 0; }
+    .btn-3d { background-color: #28a745; }
+    
+    /* Modal CSS */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); z-index: 9999; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s ease; }
+    .modal-content { background: #fff; width: 90%; max-width: 800px; height: 80vh; border-radius: 8px; display: flex; flex-direction: column; overflow: hidden; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.3s ease; }
+    .modal-header { background: #333; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+    .download-icon { color: white; text-decoration: none; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 4px; transition: background 0.2s; }
+    .download-icon:hover { background: #555; }
+    .close-btn { background: #d9534f; color: white; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; font-weight: bold; font-size: 14px; margin-left: 10px; }
+    .modal-body { flex: 1; width: 100%; background: #222; }
+    .modal-iframe { width: 100%; height: 100%; border: none; display: block; }
+  </style>
+</head>
+<body>
+
+  <div class="app-wrapper">
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Search parts by Name or ID..." onkeypress="if(event.keyCode === 13) performSearch()">
+      <button id="searchBtn" onclick="performSearch()">Search</button>
+    </div>
+    <div id="resultsContainer" class="results-grid"></div>
+  </div>
+
+  <!-- 3D Viewer Modal -->
+  <div class="modal-overlay" id="modelModal" onclick="closeViewer(event)">
+    <div class="modal-content" id="modalContent">
+      <div class="modal-header">
+        <span id="modalTitle">3D Model Viewer</span>
+        <div style="display: flex; align-items: center;">
+          <a id="modalDownloadBtn" href="#" download class="download-icon" title="Download Model">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </a>
+          <button class="close-btn" onclick="closeViewer(event, true)">Close</button>
+        </div>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <iframe id="viewerFrame" class="modal-iframe" allow="autoplay; fullscreen; vr"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwl65_4O_ODSg8NaHFcBE2CrZwUmBUJ7nBNZUHlntkTzvyz7rLP5v8AWh9MeXq8TLrPqg/exec"; // PASTE GOOGLE API LINK HERE
+
+    window.onload = function() { performSearch(); };
+
+    async function performSearch() {
+      var query = document.getElementById("searchInput").value || "";
+      var container = document.getElementById("resultsContainer");
+      container.innerHTML = "<div style='text-align:center; width:100%; color:#666; font-size:16px;'>Digging through the brick bin...</div>";
+      
+      try {
+        const response = await fetch(API_URL + "?q=" + encodeURIComponent(query));
+        const results = await response.json();
+        
+        if (results.error) {
+          container.innerHTML = `<div style="color:#d9534f; text-align:center;">Database Error: ${results.error}</div>`;
+          return;
+        }
+        displayResults(results);
+      } catch (error) {
+        container.innerHTML = `<div style="color:#d9534f; text-align:center;">Network Error: Could not connect to the database.</div>`;
+      }
+    }
+
+    function displayResults(results) {
+      var container = document.getElementById("resultsContainer");
+      container.innerHTML = "";
+
+      if (results.length === 0) {
+        container.innerHTML = "<div style='text-align:center; width:100%; color:#666;'>No parts found.</div>";
+        return;
+      }
+
+      results.forEach(function(item) {
+        var partId = item._data["Part Number"] || item._data["Part ID"] || "Unknown";
+        var partName = item._data["Part Name"] || item._data["Name"] || "Unknown";
+        var brand = item._data["Brand"] ? item._data["Brand"].toString().trim() : item._sheetName;
+        
+        var mainUrl = item._data["URL"] || item._data["Link"] || "";
+        var imageUrl = item._data["Image URL"] || item._data["Image"] || "";
+        var model3dUrl = item._data["3D URL"] || item._data["LDraw Model"] || "";
+
+        var visualHtml = imageUrl ? `<img src="${imageUrl}" class="part-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="image-placeholder" style="display:none;"><span>No Image</span></div>` : `<div class="image-placeholder"><span>No Image</span></div>`;
+        var topBtnHtml = mainUrl ? `<a href="${mainUrl}" target="_blank" class="btn">View Source Link</a>` : "";
+        var bottomBtnHtml = model3dUrl ? `<button class="btn btn-3d" onclick="openViewer('${model3dUrl}', '${partName.replace(/'/g, "\\'")}')">View 3D Model</button>` : `<a href="https://docs.google.com/forms/d/e/1FAIpQLSd5DHobfPIyXD-_m2LtF-TblvvNlArkWa5hTNvosj-d1c_KCQ/viewform" target="_blank" class="btn">Submit 3D Model</a>`;
+
+        container.innerHTML += `
+          <div class="card">
+            ${visualHtml}
+            <div class="card-content">
+              <p class="part-name" title="${partName}">${partName}</p>
+              <p class="part-detail">ID: ${partId}<br>Brand: ${brand}</p>
+              ${topBtnHtml}
+              ${bottomBtnHtml}
+            </div>
+          </div>`;
+      });
+    }
+
+    function openViewer(url, name) {
+      var modal = document.getElementById("modelModal");
+      var iframe = document.getElementById("viewerFrame");
+      var content = document.getElementById("modalContent");
+      
+      document.getElementById("modalTitle").innerText = "3D Viewer: " + name;
+      document.getElementById("modalDownloadBtn").href = url; 
+      
+      var lowerUrl = url.toLowerCase();
+      if (lowerUrl.indexOf(".dat") !== -1 || lowerUrl.indexOf(".ldr") !== -1 || lowerUrl.indexOf(".mpd") !== -1) {
+        iframe.src = "viewer.html?model=" + encodeURIComponent(url);
+      } else if (lowerUrl.indexOf(".obj") !== -1 || lowerUrl.indexOf(".stl") !== -1) {
+        iframe.src = "https://3dviewer.net/embed.html#model=" + encodeURIComponent(url);
+      } else {
+        iframe.src = url;
+      }
+
+      modal.style.display = "flex";
+      setTimeout(function() { modal.style.opacity = "1"; content.style.transform = "scale(1)"; }, 10);
+    }
+
+    function closeViewer(e, forceClose) {
+      if (forceClose || e.target.id === "modelModal") {
+        var modal = document.getElementById("modelModal");
+        var content = document.getElementById("modalContent");
+        var iframe = document.getElementById("viewerFrame");
+        
+        modal.style.opacity = "0";
+        content.style.transform = "scale(0.95)";
+        setTimeout(function() { modal.style.display = "none"; iframe.src = ""; }, 300);
+      }
+    }
+  </script>
+</body>
+</html>
