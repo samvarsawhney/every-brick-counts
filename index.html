@@ -112,7 +112,7 @@
       }
 
       results.forEach(function(item) {
-        var partId = item._data["Part Number"] || item._data["Part ID"] || "Unknown";
+        var partId = item._data["Part Number"] || item._data["Part ID"] || item._data["ID"] || "Unknown";
         var partName = item._data["Part Name"] || item._data["Name"] || "Unknown";
         var brand = item._data["Brand"] ? item._data["Brand"].toString().trim() : item._sheetName;
         var isLego = brand.toLowerCase().indexOf("lego") !== -1;
@@ -121,33 +121,38 @@
         var model3dUrl = "";
         var mainUrl = "";
 
-        // First pass: Isolate the Image and 3D URLs so they aren't confused with the purchase link
+        // Bulletproof URL Scanner: Checks the actual values instead of just the headers
         var keys = Object.keys(item._data || {});
+        
+        // Pass 1: Lock in Images and 3D Models based on file extensions or obvious headers
         keys.forEach(function(key) {
-          var lowerKey = key.toString().toLowerCase().trim();
           var val = item._data[key] ? item._data[key].toString().trim() : "";
-          if (!val) return;
-          if (lowerKey.indexOf("image") !== -1 || lowerKey === "img" || lowerKey === "picture") {
-            imageUrl = val;
-          } else if (lowerKey.indexOf("3d") !== -1 || lowerKey.indexOf("ldraw") !== -1 || lowerKey.indexOf("model") !== -1) {
+          if (!val || val.toLowerCase().indexOf("http") !== 0) return; // Ignore non-links
+          
+          var lowerKey = key.toString().toLowerCase().trim();
+          var lowerVal = val.toLowerCase();
+
+          if (lowerVal.indexOf(".dat") !== -1 || lowerVal.indexOf(".obj") !== -1 || lowerVal.indexOf(".stl") !== -1 || lowerKey.indexOf("3d") !== -1 || lowerKey.indexOf("ldraw") !== -1) {
             model3dUrl = val;
+          } else if (lowerVal.indexOf(".png") !== -1 || lowerVal.indexOf(".jpg") !== -1 || lowerVal.indexOf(".jpeg") !== -1 || lowerKey.indexOf("image") !== -1 || lowerKey.indexOf("img") !== -1) {
+            imageUrl = val;
           }
         });
 
-        // Second pass: Dynamically hunt for Rebrickable or Purchase links
+        // Pass 2: Lock in the Rebrickable/Purchase link (Any URL that isn't the image or 3D model)
         keys.forEach(function(key) {
-          var lowerKey = key.toString().toLowerCase().trim();
           var val = item._data[key] ? item._data[key].toString().trim() : "";
-          if (!val || val === imageUrl || val === model3dUrl) return;
-          if (lowerKey.indexOf("rebrickable") !== -1 || lowerKey.indexOf("purchase") !== -1 || lowerKey.indexOf("url") !== -1 || lowerKey.indexOf("link") !== -1 || val.indexOf("http") === 0) {
-            if (!mainUrl) mainUrl = val;
+          if (!val || val.toLowerCase().indexOf("http") !== 0) return;
+          
+          if (val !== imageUrl && val !== model3dUrl) {
+            mainUrl = val;
           }
         });
 
         var visualHtml = imageUrl ? `<img src="${imageUrl}" class="part-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="image-placeholder" style="display:none;"><span>No Image</span></div>` : `<div class="image-placeholder"><span>No Image</span></div>`;
         
         var topBtnHtml = "";
-        if (mainUrl && mainUrl !== "") {
+        if (mainUrl) {
           var btnText = isLego ? "View on Rebrickable" : "View Purchase Link";
           topBtnHtml = `<a href="${mainUrl}" target="_blank" class="btn">${btnText}</a>`;
         }
