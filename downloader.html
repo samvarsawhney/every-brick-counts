@@ -47,9 +47,8 @@
         return;
       }
 
-      // Clean up the user input (removes spaces and accidental .dat extensions)
       var partIds = input.split(",").map(id => id.trim().toLowerCase().replace('.dat', ''));
-      statusText.innerText = "Fetching 3D models... Please wait.";
+      statusText.innerText = "Bypassing server blocks... Please wait.";
       statusText.style.color = "#0066cc";
 
       var zip = new JSZip();
@@ -59,15 +58,36 @@
         var partId = partIds[i];
         if (!partId) continue;
         
-        // UPADTE: Using the open GitHub CDN instead of the locked LDraw server
-        var ldrawUrl = `https://raw.githubusercontent.com/gkjohnson/ldraw-parts-library/master/parts/${partId}.dat`;
+        // Target the official LDraw library directly
+        var officialUrl = `https://library.ldraw.org/library/official/parts/${partId}.dat`;
+        
+        // Wrap the URL in a CORS proxy to bypass the download block
+        var proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(officialUrl)}`;
         
         try {
-          var response = await fetch(ldrawUrl);
+          var response = await fetch(proxyUrl);
+          
           if (response.ok) {
             var fileData = await response.text();
-            zip.file(partId + ".dat", fileData);
-            filesFound++;
+            
+            // Ensure the proxy didn't return an HTML 404 page by mistake
+            if (fileData.indexOf("<html") === -1 && fileData.indexOf("404 Not Found") === -1) {
+              zip.file(partId + ".dat", fileData);
+              filesFound++;
+            } else {
+              // If not found in official, check the unofficial/new parts folder
+              var unofficialUrl = `https://library.ldraw.org/library/unofficial/parts/${partId}.dat`;
+              var proxyUnofficial = `https://api.allorigins.win/raw?url=${encodeURIComponent(unofficialUrl)}`;
+              var res2 = await fetch(proxyUnofficial);
+              
+              if (res2.ok) {
+                var fileData2 = await res2.text();
+                if (fileData2.indexOf("<html") === -1 && fileData2.indexOf("404 Not Found") === -1) {
+                  zip.file(partId + ".dat", fileData2);
+                  filesFound++;
+                }
+              }
+            }
           }
         } catch (e) {
           console.log("Could not fetch: " + partId);
@@ -75,7 +95,7 @@
       }
 
       if (filesFound === 0) {
-        statusText.innerText = "Error: None of those Part IDs could be found.";
+        statusText.innerText = "Error: None of those Part IDs exist in the LDraw library.";
         statusText.style.color = "#d9534f";
         return;
       }
