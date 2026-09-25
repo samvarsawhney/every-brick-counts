@@ -8,6 +8,9 @@
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #f4f4f9; font-family: Arial, sans-serif; }
     .app-wrapper { padding: 15px; box-sizing: border-box; width: 100%; max-width: 1200px; margin: 0 auto; }
     * { box-sizing: border-box; }
+    .top-nav { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+    .nav-btn { padding: 10px 15px; background-color: #333; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px; }
+    .nav-btn:hover { background-color: #555; }
     .search-container { margin-bottom: 25px; text-align: center; width: 100%; }
     #searchInput { padding: 12px; width: 100%; max-width: 400px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 10px; }
     #searchBtn { padding: 12px 24px; font-size: 16px; background-color: #0066cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;}
@@ -38,6 +41,10 @@
 <body>
 
   <div class="app-wrapper">
+    <div class="top-nav">
+      <a href="downloader.html" class="nav-btn">Bulk 3D Downloader</a>
+    </div>
+
     <div class="search-container">
       <input type="text" id="searchInput" placeholder="Search parts by Name or ID..." onkeypress="if(event.keyCode === 13) performSearch()">
       <button id="searchBtn" onclick="performSearch()">Search</button>
@@ -121,13 +128,11 @@
         var model3dUrl = "";
         var mainUrl = "";
 
-        // Bulletproof URL Scanner: Checks the actual values instead of just the headers
         var keys = Object.keys(item._data || {});
         
-        // Pass 1: Lock in Images and 3D Models based on file extensions or obvious headers
         keys.forEach(function(key) {
           var val = item._data[key] ? item._data[key].toString().trim() : "";
-          if (!val || val.toLowerCase().indexOf("http") !== 0) return; // Ignore non-links
+          if (!val || val.toLowerCase().indexOf("http") !== 0) return; 
           
           var lowerKey = key.toString().toLowerCase().trim();
           var lowerVal = val.toLowerCase();
@@ -139,7 +144,6 @@
           }
         });
 
-        // Pass 2: Lock in the Rebrickable/Purchase link (Any URL that isn't the image or 3D model)
         keys.forEach(function(key) {
           var val = item._data[key] ? item._data[key].toString().trim() : "";
           if (!val || val.toLowerCase().indexOf("http") !== 0) return;
@@ -157,7 +161,7 @@
           topBtnHtml = `<a href="${mainUrl}" target="_blank" class="btn">${btnText}</a>`;
         }
         
-        var bottomBtnHtml = model3dUrl ? `<button class="btn btn-3d" onclick="openViewer('${model3dUrl}', '${partName.replace(/'/g, "\\'")}')">View 3D Model</button>` : `<a href="https://docs.google.com/forms/d/e/1FAIpQLSd5DHobfPIyXD-_m2LtF-TblvvNlArkWa5hTNvosj-d1c_KCQ/viewform" target="_blank" class="btn">Submit 3D Model</a>`;
+        var bottomBtnHtml = model3dUrl ? `<button class="btn btn-3d" onclick="openViewer('${model3dUrl}', '${partName.replace(/'/g, "\\'")}')">View 3D Model</button>` : `<a href="https://docs.google.com/forms/d/e/1FAIpQLSd5DHobfPIyXD-_m2LtF-TblvvNlArkWa5hTNvosj-d1c_KCQ/viewform" target="_blank" class="btn">Contribute 3D Model</a>`;
 
         container.innerHTML += `
           <div class="card">
