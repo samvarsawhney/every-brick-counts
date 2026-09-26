@@ -26,7 +26,7 @@
     import { LDrawLoader } from 'three/addons/loaders/LDrawLoader.js';
 
     const urlParams = new URLSearchParams(window.location.search);
-    const modelUrl = urlParams.get('model');
+    let modelUrl = urlParams.get('model');
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x222222);
@@ -47,8 +47,12 @@
     scene.add(directionalLight);
 
     if (modelUrl) {
+      // Bypass the strict LDraw CORS block by wrapping their URLs in a proxy
+      if (modelUrl.indexOf('library.ldraw.org') !== -1) {
+        modelUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(modelUrl);
+      }
+
       const loader = new LDrawLoader();
-      
       loader.setPartsLibraryPath('https://raw.githubusercontent.com/gkjohnson/ldraw-parts-library/master/'); 
 
       loader.load(
